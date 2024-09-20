@@ -1,0 +1,63 @@
+!pip list | grep bertopic
+import os
+import re
+import pandas as pd
+import nltk
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+
+from bertopic import BERTopic
+from sentence_transformers import SentenceTransformer
+pd.set_option('display.max_colwidth', 500)
+
+news_articles = '/Users/apple/Documents/Umel/thesis/json/metadata.json'
+path = os.path.join(news_articles)
+news_df = pd.read_json(path, orient='records', lines=True)
+news_df.shape
+
+# Replace newlines with spaces
+news_df['text_clean'] = news_df['text'].str.strip().str.replace('\n',' ')
+
+# Remove special characters
+news_df['text_clean'] = news_df['text_clean'].map(lambda x: re.sub('[^a-zA-Z0-9 @ . , : - _]', '', str(x)))
+
+# Lowercase text
+news_df['text_clean'] = news_df['text_clean'].str.lower()
+
+# Remove stopwords
+stop_words = stopwords.words('english')
+stop_words.extend(['facebook'])
+news_df['text_no_stopwords'] = news_df['text_clean'].apply(lambda x: ' '.join([word for word in x.split() if word not in (stop_words)]))
+
+docs = news_df['text_no_stopwords'].tolist()
+
+news_df[['text', 'text_clean', 'text_no_stopwords']].head(5)
+
+topic_model = BERTopic(language="english", min_topic_size=10, n_gram_range=(1, 2), calculate_probabilities=True, verbose=True)
+
+# Fit and transform the model
+topics, probs = topic_model.fit_transform(docs)
+
+#Review most frequent topics
+freq = topic_model.get_topic_info()
+
+print(f"Topics found: {freq.shape[0]}")
+freq.head(277)
+
+# Select the most frequent topic
+topic_model.get_topic(0)  
+
+#visualize topics
+topic_model.visualize_distribution(probs[200], min_probability=0.005)
+topic_model.visualize_topics()
+topic_model.visualize_hierarchy(top_n_topics=20)
+
+# Prepare embeddings
+sentence_model = SentenceTransformer("all-MiniLM-L6-v2")
+embeddings = sentence_model.encode(docs, show_progress_bar=False)
+
+# Train BERTopic
+topic_model = BERTopic().fit(docs, embeddings)
+
+# Run the visualization with the original embeddings
+topic_model.visualize_documents(docs, embeddings=embeddings)
