@@ -1,0 +1,13 @@
+import pandas as pd
+
+# Load the CSV file into a DataFrame, specifying data types if necessary
+df = pd.read_csv('/Users/apple/Documents/Umel/thesis/csv/EU.csv', dtype={'large_integer_column': str})
+
+# Check for missing data
+print(df.isnull().sum())
+
+# Print a few rows to inspect the data
+print(df.head())
+
+# Convert the DataFrame to a JSON file
+df.to_json('/Users/apple/Documents/Umel/thesis/json.json', orient='records', lines=True)
